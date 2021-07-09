@@ -2,6 +2,8 @@ const express = require('express');
 const ejs = require('ejs');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
+const md5 = require('md5');
+
 
 const app = express();
 app.use(bodyParser.urlencoded({extended:false}));
@@ -25,14 +27,20 @@ app.route('/register')
     })
     .post((req,res) => {
         let emailId = req.body.username;
-        let pswd = req.body.password;
-        const newUser = new User({
-            email:emailId,
-            password:pswd
-        })
-        newUser.save((err) => {
-            if(!err)res.send('Successfully Registered');
-            else res.send(err)
+        let pswd = md5(req.body.password);
+
+        User.findOne({email:emailId},(err,data) => {
+            if(!err) res.send('Email already registered');
+            else{
+                const newUser = new User({
+                    email:emailId,
+                    password:pswd
+                })
+                newUser.save((err) => {
+                    if(!err)res.redirect('/');
+                    else res.send(err)
+                })
+            }
         })
     })
 
@@ -42,7 +50,7 @@ app.route('/login')
     })
     .post((req,res) => {
         let emailId = req.body.username;
-        let pswd = req.body.password;
+        let pswd = md5(req.body.password);
         User.findOne({email:emailId},(err,data) => {
             if(!err){
                 if(pswd === data.password){
