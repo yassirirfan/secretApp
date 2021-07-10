@@ -2,7 +2,8 @@ const express = require('express');
 const ejs = require('ejs');
 const bodyParser = require('body-parser');
 const mongoose = require('mongoose');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
+const saltRounds = 12;
 
 
 const app = express();
@@ -27,18 +28,24 @@ app.route('/register')
     })
     .post((req,res) => {
         let emailId = req.body.username;
-        let pswd = md5(req.body.password);
+        let pswd = req.body.password;
 
         User.findOne({email:emailId},(err,data) => {
-            if(!err) res.send('Email already registered');
+            if(err) res.send('Email already registered');
             else{
-                const newUser = new User({
-                    email:emailId,
-                    password:pswd
-                })
-                newUser.save((err) => {
-                    if(!err)res.redirect('/');
-                    else res.send(err)
+                bcrypt.hash(pswd, saltRounds, function(err, hash) {
+                    if(!err){
+                        const newUser = new User({
+                            email:emailId,
+                            password:hash
+                        })
+                        newUser.save((err) => {
+                            if(!err)res.redirect('/');
+                            else res.send(err)
+                        })
+                    }
+                    else console.log(err)
+
                 })
             }
         })
@@ -50,15 +57,16 @@ app.route('/login')
     })
     .post((req,res) => {
         let emailId = req.body.username;
-        let pswd = md5(req.body.password);
-        User.findOne({email:emailId},(err,data) => {
-            if(!err){
-                if(pswd === data.password){
-                    res.render('secrets');
-                }
-                else res.send('Wrong Password');
+        let pswd = req.body.password;
+
+        User.findOne({email:emailId} , (err,data) => {
+            if(data){
+                bcrypt.compare(pswd,data.password, function(err, result) {
+                    if(result == true) res.render('secrets');
+                    else res.send('Wrong password');
+                });
             }
-            else res.send('Sorry you have not registered yet');
+            else res.send('User not found !');
         })
     })
 
